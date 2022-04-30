@@ -8,6 +8,7 @@ import schedule
 import time
 import requests
 from bs4 import BeautifulSoup
+import os
 
 
 def send_message(msg):
@@ -143,7 +144,9 @@ def job():
 if __name__ == "__main__":
     # 程序运行时打卡一次，然后每 12 小时打卡一次
     job()
-    schedule.every(12).hours.do(job)
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
+    enable_cron = os.getenv('enable_cron')
+    if enable_cron:
+        schedule.every(12).hours.do(job)
+        while True:
+            schedule.run_pending()
+            time.sleep(1)

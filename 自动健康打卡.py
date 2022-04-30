@@ -3,9 +3,6 @@ import json
 import time
 import traceback
 
-import csv
-import schedule
-import time
 import requests
 from bs4 import BeautifulSoup
 
@@ -131,19 +128,6 @@ def healthFill(username, password):
         send_message("❗❗❗\n健康打卡提交失败！\n报错信息如下：\n"+traceback.format_exc())
     print("\n\n\n")
 
-def job():
-    csv_reader = csv.reader(open("./账号.csv"))
-    send_message("开始进行打卡")
-
-    for line in csv_reader:
-        send_message("学号：" + line[0])
-        healthFill(line[0],line[1])
-    send_message("打卡完成")
 
 if __name__ == "__main__":
-    # 程序运行时打卡一次，然后每 12 小时打卡一次
-    job()
-    schedule.every(12).hours.do(job)
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
+    healthFill('你的学号', 'i南工的登录密码')

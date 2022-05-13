@@ -1,16 +1,15 @@
 # 自动健康打卡，取上次上传数据作为本次打卡数据
 import json
+import platform
 import time
 import traceback
-
+import random
 import requests
 from bs4 import BeautifulSoup
 
-
-def send_message(msg):
+def sendMessage(msg):
     print(msg)
     # 如果需要通知提醒，请在此处添加邮箱、或QQ机器人、微信企业号、微信公众号、pushplus等通知提醒功能的代码
-
 
 def healthFill(username, password):
     loginUrl = 'https://u.njtech.edu.cn/cas/login?service=http://pdc.njtech.edu.cn/#/dform/genericForm/wbfjIwyK'
@@ -19,9 +18,6 @@ def healthFill(username, password):
     response = session.get(loginUrl)
     soup = BeautifulSoup(response.content, "html.parser")
     lt0 = soup.find('input', attrs={'name': 'lt'})['value']
-    if not lt0:
-        send_message('登录页面获取失败')
-        return
     execution0 = soup.find('input', attrs={'name': 'execution'})['value']
     loginPostUrl = 'https://u.njtech.edu.cn' + \
         soup.select("#fm2")[0].attrs['action']
@@ -40,13 +36,12 @@ def healthFill(username, password):
     response = session.post(
         loginPostUrl, data=loginPostData, allow_redirects=False)
     loginRedirectUrl = response.headers.get('Location')
-    if not loginRedirectUrl:
-        send_message('❗❗❗\n健康打卡提交失败！\n登录失败！请检查账号密码')
-        return
     ticket = loginRedirectUrl.split('?ticket=')[-1].split('#/')[0]
-    pageHeaders = {"Content-Type": "application/json"}
-    pageHeaders["Referer"] = "http://pdc.njtech.edu.cn/?ticket={}".format(
-        ticket)
+    pageHeaders = {
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Linux; U; Android 5.0.2; zh-cn; MI 2C Build/LRX22G) AppleWebKit/533.1 (KHTML, like Gecko)Version/4.0 MQQBrowser/5.4 TBS/025469 Mobile Safari/533.1 MicroMessenger/6.2.5.53_r2565f18.621 NetType/WIFI Language/zh_CN",
+    }
+    pageHeaders["Referer"] = "http://pdc.njtech.edu.cn/?ticket={}".format(ticket)
 
     # 获取表单内容（好像用不到）
     # response = session.get(loginRedirectUrl, headers=pageHeaders, allow_redirects=False)
@@ -69,6 +64,18 @@ def healthFill(username, password):
             wid), headers=pageHeaders, allow_redirects=False)
         # 取最近一次提交数据，数据的结构和提交所需的结构不完全一致，进行修改后作为此次提交数据
         lastData = json.loads(response.content)["data"][0]
+
+        healthCode = []
+        tourCode = []
+
+        # 判断健康码、行程码是否过期
+        try:
+            healthCode = lastData['ONEIMAGEUPLOAD_KWYTQFT3'][1:-1].split(', ')
+            tourCode = lastData['ONEIMAGEUPLOAD_KWYTQFT5'][1:-1].split(', ')
+        except Exception as e:
+            sendMessage("❗❗❗\n健康打卡提交失败！\n健康码或身份码过期")
+            return True
+
         dataMap = {
             "wid": "",
             "RADIO_KWYTQFSU": "本人知情承诺",   # 知情承诺
@@ -84,10 +91,8 @@ def healthFill(username, password):
             "CASCADER_KWYTQFT1": lastData['CASCADER_KWYTQFT1'][1:-1].split(', '),
             "RADIO_KWYTQFT2": lastData['RADIO_KWYTQFT2'],   # 身体状况
             # 下面这两行如果报出现异常一般是健康码行程码过期（一般两周左右会过期一次），需要自己重新打卡一次
-            # 健康码
-            "ONEIMAGEUPLOAD_KWYTQFT3": lastData['ONEIMAGEUPLOAD_KWYTQFT3'][1:-1].split(', '),
-            # 行程码
-            "ONEIMAGEUPLOAD_KWYTQFT5": lastData['ONEIMAGEUPLOAD_KWYTQFT5'][1:-1].split(', '),
+            "ONEIMAGEUPLOAD_KWYTQFT3": healthCode,   # 健康码
+            "ONEIMAGEUPLOAD_KWYTQFT5": tourCode,   # 行程码
             "LOCATION_KWYTQFT7": lastData['LOCATION_KWYTQFT7'],  # 定位
         }
 
@@ -119,15 +124,27 @@ def healthFill(username, password):
         if json.loads(response.content)["message"] == "请求成功":
             response = session.get("http://pdc.njtech.edu.cn/dfi/formData/loadFormFillHistoryDataList?formWid={}&auditConfigWid=".format(
                 wid), headers=pageHeaders, allow_redirects=False)
-            send_message("健康打卡提交成功！\n此次提交的数据内容如下：\n"+json.dumps(json.loads(response.content)
-                                                                ["data"][0], indent=0, separators=(', ', ': '), ensure_ascii=False)[2:-1])
+            sendMessage("健康打卡提交成功！\n此次提交的数据内容如下：\n"+json.dumps(json.loads(response.content)[
+                "data"][0], indent=0, separators=(', ', ': '), ensure_ascii=False)[2:-1])
+            return True
         else:
-            send_message("❗❗❗\n健康打卡提交失败！\n数据提交失败，服务器未响应")
+            sendMessage("❗❗❗\n健康打卡提交失败！\n数据提交失败，服务器未响应")
+            return False
     except Exception as e:
-        # 统一处理代码运行抛出的异常，通过通知提醒错误内容
-        send_message("❗❗❗\n健康打卡提交失败！\n报错信息如下：\n"+traceback.format_exc())
-    print("\n\n\n")
+        sendMessage("❗❗❗\n健康打卡提交失败！\n报错信息如下：\n"+traceback.format_exc())
+        return False
+
+# 自动重试
 
 
-if __name__ == "__main__":
-    healthFill('你的学号', 'i南工的登录密码')
+def retryHealth(username, password, maxRetryTimes=3):
+    for i in range(maxRetryTimes+1):
+        i and sendMessage("健康打卡第"+str(i)+"次重试...")
+        if healthFill(username, password):
+            return True
+        time.sleep(random.randint(1, 2))
+    sendMessage("❗❗❗\n健康打卡失败！已超过最大重试次数")
+    return False
+
+
+retryHealth('你的学号', 'i南工的登录密码')

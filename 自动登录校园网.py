@@ -1,7 +1,5 @@
 import requests
-import sys
 from bs4 import BeautifulSoup
-import socket
 
 login_url="https://i.njtech.edu.cn"
 

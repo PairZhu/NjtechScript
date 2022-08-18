@@ -1,6 +1,5 @@
 # 自动健康打卡，取上次上传数据作为本次打卡数据
 import json
-import platform
 import time
 import traceback
 import random
@@ -124,8 +123,19 @@ def healthFill(username, password):
         if json.loads(response.content)["message"] == "请求成功":
             response = session.get("http://pdc.njtech.edu.cn/dfi/formData/loadFormFillHistoryDataList?formWid={}&auditConfigWid=".format(
                 wid), headers=pageHeaders, allow_redirects=False)
-            sendMessage("健康打卡提交成功！\n此次提交的数据内容如下：\n"+json.dumps(json.loads(response.content)[
-                "data"][0], indent=0, separators=(', ', ': '), ensure_ascii=False)[2:-1])
+            response = json.loads(response.content)["data"][0]
+            result = {
+                '学号': response['INPUT_KWYTQFSO'],
+                '姓名': response['INPUT_KWYTQFSP'],
+                '学院': response['SELECT_KX3ZXSAE'],
+                '班级': response['INPUT_KWYTQFSS'],
+                '当前位置': response['RADIO_KWYTQFSZ'],
+                '所在省市区': response['CASCADER_KWYTQFT1'],
+                '定位': response['LOCATION_KWYTQFT7'],
+                '身体状况': response['RADIO_KWYTQFT2'],
+            }
+            sendMessage("健康打卡提交成功！\n此次提交的数据内容如下：\n"+json.dumps(result,
+                                                               indent=0, separators=(', ', ': '), ensure_ascii=False)[2:-1])
             return True
         else:
             sendMessage("❗❗❗\n健康打卡提交失败！\n数据提交失败，服务器未响应")

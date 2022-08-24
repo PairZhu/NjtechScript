@@ -10,7 +10,7 @@ def sendMessage(msg):
     print(msg)
     # 如果需要通知提醒，请在此处添加邮箱、或QQ机器人、微信企业号、微信公众号、pushplus等通知提醒功能的代码
 
-def healthFill(username, password):
+def healthFill(username, password, nocheck):
     loginUrl = 'https://u.njtech.edu.cn/cas/login?service=http://pdc.njtech.edu.cn/#/dform/genericForm/wbfjIwyK'
     session = requests.Session()
     # 通过i南工进行登录，获取i南工登录页面
@@ -64,16 +64,19 @@ def healthFill(username, password):
         # 取最近一次提交数据，数据的结构和提交所需的结构不完全一致，进行修改后作为此次提交数据
         lastData = json.loads(response.content)["data"][0]
 
-        healthCode = []
-        tourCode = []
+        # 默认值设为不存在的图片
+        healthCode = ['null.jpg']
+        tourCode = ['none.jpg']
 
-        # 判断健康码、行程码是否过期
-        try:
-            healthCode = lastData['ONEIMAGEUPLOAD_KWYTQFT3'][1:-1].split(', ')
-            tourCode = lastData['ONEIMAGEUPLOAD_KWYTQFT5'][1:-1].split(', ')
-        except Exception as e:
-            sendMessage("❗❗❗\n健康打卡提交失败！\n健康码或身份码过期")
-            return True
+        # 如果设置了不检查健康码、行程码则跳过此步
+        if not nocheck:
+            # 判断健康码、行程码是否过期
+            try:
+                healthCode = lastData['ONEIMAGEUPLOAD_KWYTQFT3'][1:-1].split(', ')
+                tourCode = lastData['ONEIMAGEUPLOAD_KWYTQFT5'][1:-1].split(', ')
+            except Exception as e:
+                sendMessage("❗❗❗健康打卡提交失败！\n健康码或身份码过期")
+                return True
 
         dataMap = {
             "wid": "",
@@ -138,23 +141,23 @@ def healthFill(username, password):
                                                                indent=0, separators=(', ', ': '), ensure_ascii=False)[2:-1])
             return True
         else:
-            sendMessage("❗❗❗\n健康打卡提交失败！\n数据提交失败，服务器未响应")
+            sendMessage("❗❗❗健康打卡提交失败！\n数据提交失败，服务器未响应")
             return False
     except Exception as e:
-        sendMessage("❗❗❗\n健康打卡提交失败！\n报错信息如下：\n"+traceback.format_exc())
+        sendMessage("❗❗❗健康打卡提交失败！\n报错信息如下：\n"+traceback.format_exc())
         return False
 
 # 自动重试
 
 
-def retryHealth(username, password, maxRetryTimes=3):
+def retryHealth(username, password, nocheck, maxRetryTimes=3):
     for i in range(maxRetryTimes+1):
         i and sendMessage("健康打卡第"+str(i)+"次重试...")
-        if healthFill(username, password):
+        if healthFill(username, password, nocheck):
             return True
         time.sleep(random.randint(1, 2))
-    sendMessage("❗❗❗\n健康打卡失败！已超过最大重试次数")
+    sendMessage("❗❗❗健康打卡失败！已超过最大重试次数")
     return False
 
-
-retryHealth('你的学号', 'i南工的登录密码')
+# 如果第三个参数填True，会将健康码行程码填为不存在的图片，一样可以成功打卡，永远不会提示过期。（此举有风险，造成任何后果本人概不负责）
+retryHealth('你的学号', 'i南工的登录密码', False)

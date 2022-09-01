@@ -76,7 +76,7 @@ def healthFill(username, password, nocheck):
                 tourCode = lastData['ONEIMAGEUPLOAD_KWYTQFT5'][1:-1].split(', ')
             except Exception as e:
                 sendMessage("❗❗❗健康打卡提交失败！\n健康码或身份码过期")
-                return True
+                return False
 
         dataMap = {
             "wid": "",

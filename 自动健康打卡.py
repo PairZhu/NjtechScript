@@ -30,7 +30,7 @@ def healthFill(Authentication, nocheck):
 
         # 判断Authentication是否有效
         if jsonData['code'] == 3001:
-            sendMessage("打卡失败，身份认证失效，请重新获取Authentication")
+            sendMessage("❗❗❗健康打卡提交失败！\n身份认证失效，请重新获取Authentication")
             return
 
         # 取最近一次提交数据，数据的结构和提交所需的结构不完全一致，进行修改后作为此次提交数据

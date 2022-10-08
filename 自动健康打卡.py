@@ -10,7 +10,12 @@ def sendMessage(msg, success=False):
     # 如果需要通知提醒，请在此处添加邮箱、或QQ机器人、微信企业号、微信公众号、pushplus等通知提醒功能的代码
 
 
-def healthFill(Authentication, nocheck):
+# 如果需要修改提交的最新核酸检测的日期，请在此处修改，默认为上次填写的值（返回日期格式为"%Y-%m-%d"的字符串）
+def getLastestPicker(lastDate):
+    return lastDate
+
+
+def healthFill(Authentication):
     pageHeaders = {
         "Content-Type": "application/json",
         "User-Agent": "Mozilla/5.0 (Linux; U; Android 5.0.2; zh-cn; MI 2C Build/LRX22G) AppleWebKit/533.1 (KHTML, like Gecko)Version/4.0 MQQBrowser/5.4 TBS/025469 Mobile Safari/533.1 MicroMessenger/6.2.5.53_r2565f18.621 NetType/WIFI Language/zh_CN",
@@ -36,21 +41,18 @@ def healthFill(Authentication, nocheck):
         # 取最近一次提交数据，数据的结构和提交所需的结构不完全一致，进行修改后作为此次提交数据
         lastData = jsonData["data"][0]
 
-        # 默认值设为不存在的图片
-        healthCode = ['null.jpg']
-        tourCode = ['none.jpg']
+        healthCode = []
+        tourCode = []
 
-        # 如果设置了不检查健康码、行程码则跳过此步
-        if not nocheck:
-            # 判断健康码、行程码是否过期
-            try:
-                healthCode = lastData['ONEIMAGEUPLOAD_KWYTQFT3'][1:-
-                                                                 1].split(', ')
-                tourCode = lastData['ONEIMAGEUPLOAD_KWYTQFT5'][1:-
-                                                               1].split(', ')
-            except Exception as e:
-                sendMessage("❗❗❗健康打卡提交失败！\n健康码或身份码过期")
-                return
+        # 判断健康码、行程码是否过期
+        try:
+            healthCode = lastData['ONEIMAGEUPLOAD_KWYTQFT3'][1:-
+                                                                1].split(', ')
+            tourCode = lastData['ONEIMAGEUPLOAD_KWYTQFT5'][1:-
+                                                            1].split(', ')
+        except Exception as e:
+            sendMessage("❗❗❗健康打卡提交失败！\n健康码或身份码过期，请手动打卡一次，下次即可继续自动打卡")
+            return
 
         dataMap = {
             "wid": "",
@@ -66,6 +68,8 @@ def healthFill(Authentication, nocheck):
             # 所在省市区
             "CASCADER_KWYTQFT1": lastData['CASCADER_KWYTQFT1'][1:-1].split(', '),
             "RADIO_KWYTQFT2": lastData['RADIO_KWYTQFT2'],   # 身体状况
+            # 最新核酸检测时间
+            "DATEPICKER_L8Z744C5": getLastestPicker(lastData['DATEPICKER_L8Z744C5']),
             # 下面这两行如果报出现异常一般是健康码行程码过期（一般两周左右会过期一次），需要自己重新打卡一次
             "ONEIMAGEUPLOAD_KWYTQFT3": healthCode,   # 健康码
             "ONEIMAGEUPLOAD_KWYTQFT5": tourCode,   # 行程码
@@ -99,6 +103,7 @@ def healthFill(Authentication, nocheck):
                 '所在省市区': response['CASCADER_KWYTQFT1'],
                 '定位': response['LOCATION_KWYTQFT7'],
                 '身体状况': response['RADIO_KWYTQFT2'],
+                '最新核酸检测时间': response['DATEPICKER_L8Z744C5'],
             }
             sendMessage("健康打卡提交成功！\n此次提交的数据内容如下：\n"+json.dumps(result, indent=0,
                                                                separators=(', ', ': '), ensure_ascii=False)[2:-1], True)
@@ -109,4 +114,4 @@ def healthFill(Authentication, nocheck):
 
 
 # 如果第二个参数填True，会将健康码行程码填为不存在的图片，一样可以成功打卡，永远不会提示过期。（此举有风险，造成任何后果本人概不负责）
-healthFill('抓包抓到的Authentication字段', False)
+healthFill('抓包抓到的Authentication字段')
